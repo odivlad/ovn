@@ -324,7 +324,25 @@ vtep_macs_run(struct ovsdb_idl_txn *vtep_idl_txn, struct shash *ucast_macs_rmts,
             continue;
         }
 
-        tnl_key = port_binding_rec->datapath->tunnel_key;
+        if (strcmp(port_binding_rec->type, "chassisredirect") == 0) {
+            const char *dp = smap_get(&port_binding_rec->options, "distributed-port");
+            const struct sbrec_port_binding *lrp_pb = shash_find_data(non_vtep_pbs, dp);
+
+            if (!lrp_pb) {
+                continue;
+            }
+            const char *peer = smap_get(&lrp_pb->options, "peer");
+
+            if (!peer) {
+                continue;
+            }
+            const struct sbrec_port_binding *peer_pb = shash_find_data(non_vtep_pbs, peer);
+            tnl_key = peer_pb->datapath->tunnel_key;
+        }
+        else {
+            tnl_key = port_binding_rec->datapath->tunnel_key;
+        }
+
         HMAP_FOR_EACH_WITH_HASH (ls_node, hmap_node,
                                  hash_uint64((uint64_t) tnl_key),
                                  &ls_map) {
@@ -574,7 +592,7 @@ vtep_run(struct controller_vtep_ctx *ctx)
         struct shash *target =
             !strcmp(port_binding_rec->type, "vtep") ? &vtep_pbs : &non_vtep_pbs;
 
-        if (!port_binding_rec->chassis) {
+        if (!port_binding_rec->chassis && strcmp(port_binding_rec->type, "patch") != 0) {
             continue;
         }
         shash_add(target, port_binding_rec->logical_port, port_binding_rec);

@@ -7320,8 +7320,7 @@ build_lswitch_arp_nd_responder_skip_local(struct ovn_port *op,
                                           struct ds *match)
 {
     if (op->nbsp) {
-        if ((!strcmp(op->nbsp->type, "localnet")) ||
-            (!strcmp(op->nbsp->type, "vtep"))) {
+        if (!strcmp(op->nbsp->type, "localnet")) {
             ds_clear(match);
             ds_put_format(match, "inport == %s", op->json_key);
             ovn_lflow_add_with_lport_and_hint(lflows, op->od,

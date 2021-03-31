@@ -3954,17 +3954,6 @@ for s in 1 2 3; do
     test_packet $s f0000000ffff f0000000000$s 0${s}66 $unknown           #3
 done
 
-# ARP request should not be responded to by logical switch router
-# type arp responder on HV1 and HV2 and should reach directly to
-# vif1 and vif2
-sha=f00000000003
-spa=`ip_to_hex 192 168 1 2`
-tpa=`ip_to_hex 192 168 1 1`
-request=ffffffffffff${sha}08060001080006040001${sha}${spa}ffffffffffff${tpa}
-as hv3 ovs-appctl netdev-dummy/receive vif3 $request
-echo $request >> 1.expected
-echo $request >> 2.expected
-
 # dump information with counters
 echo "------ OVN dump ------"
 ovn-nbctl show
