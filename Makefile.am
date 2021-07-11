@@ -91,8 +91,7 @@ EXTRA_DIST = \
 	.ci/osx-build.sh \
 	.ci/osx-prepare.sh \
 	.ci/ovn-kubernetes/Dockerfile \
-	.github/workflows/test.yml \
-	.github/workflows/ovn-kubernetes.yml \
+	.github/workflows/build-and-test.yml \
 	boot.sh \
 	$(MAN_FRAGMENTS) \
 	$(MAN_ROOTS) \

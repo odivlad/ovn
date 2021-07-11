@@ -1,0 +1,295 @@
+name: Build and Test
+
+on:
+  push:
+  pull_request:
+  # schedule:
+  #   # Run Sunday at midnight
+  #   - cron: '*/2 * * * *'
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - gcc
+          - clang
+        platform:
+          - x32
+          - x64
+        os:
+          - ubuntu-20.04
+          - macos-latest
+        ovs_version:
+          - master
+          # - submodule
+        disable_ssl:
+          - '--disable-ssl'
+          - ''
+        include:
+          - compiler: clang
+            platform: x64
+            ASAN: -fsanitize=address -fno-omit-frame-pointer -fno-common
+          - os: ubuntu-20.04
+            platform: x32
+            extra_dependencies: gcc-multilib
+          - os: ubuntu-20.04
+            platform: x64
+            extra_dependencies: libunbound-dev libunwind-dev
+          - compiler: gcc
+            platform: x64
+            run_tests: yes
+          - platform: x32
+            M32: -m32
+        exclude:
+          - os: macos-latest
+            disable_ssl: ''
+    env:
+      CC: ${{ matrix.compiler }}
+      CFLAGS: ${{ matrix.M32 }} ${{ matrix.ASAN }}
+      LDFLAGS: ${{ matrix.M32 }}
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      # Weekly runs test using OVS master instead of the
+      # submodule.
+      - name: checkout OVS master
+        if: github.event_name == 'schedule'
+        uses: actions/checkout@v2
+        with:
+          repository: openvswitch/ovs
+          path: ovs
+          ref: ${{ matrix.ovs_version }}
+
+      - name: prepare OS
+        run: |
+          sudo apt-get update && sudo apt-get install -y \
+            automake libtool gcc bc libjemalloc2 libjemalloc-dev \
+            libssl-dev llvm-dev libelf-dev libnuma-dev libpcap-dev \
+            selinux-policy-dev ncat \
+            ${{ matrix.extra_dependencies }}
+        if: startsWith(matrix.os, 'ubuntu')
+
+      - name: prepare OS
+        run: |
+          brew install automake
+        if: startsWith(matrix.os, 'macos')
+
+      - name: set up python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Install python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 hacking sphinx pyOpenSSL docutils
+
+      - name: bootstrap OVS
+        run: |
+          pushd ovs
+          ./boot.sh
+
+      - name: configure OVS
+        run: |
+          pushd ovs
+          ./configure
+          if [ $? -ne 0 ]; then
+            cat config.log
+            exit 1
+          fi
+
+      - name: depermine CPUs
+        run: nproc > ./ncpus || sysctl -n hw.logicalcpu > ./ncpus
+
+      - name: build OVS
+        run: (pushd ovs; make -j$(cat ./ncpus))
+
+      - name: bootstrap OVN
+        run: ./boot.sh
+
+      - name: configure OVN
+        run: |
+          ./configure --with-ovs-source=ovs \
+            ${{ matrix.env.sparse }} ${{ matrix.disable_ssl }}  || cat config.log
+
+      - name: build OVN
+        run: make -j$(cat ./ncpus)
+
+      - name: test OVN
+        run: |
+          make check -j$(cat ./ncpus) TESTSUITEFLAGS="-j$(cat ./ncpus)" RECHECK=yes
+          if [ $? -ne 0 ]; then
+            cat ./*/_build/sub/tests/testsuite.log
+            exit 1
+          fi
+        if: ${{ matrix.run_tests == 'yes' }}
+
+  # build:
+  #   needs: setup
+    
+  #   env:
+  #     dependencies: |
+  #       automake libtool gcc bc libjemalloc1 libjemalloc-dev    \
+  #       libssl-dev llvm-dev libelf-dev libnuma-dev libpcap-dev  \
+  #       selinux-policy-dev
+  #     m32_dependecies: gcc-multilib
+  #     CC:          ${{ matrix.compiler }}
+  #     LIBS:        ${{ matrix.libs }}
+  #     M32:         ${{ matrix.m32 }}
+  #     OPTS:        ${{ matrix.opts }}
+  #     TESTSUITE:   ${{ matrix.testsuite }}
+
+  #   name: linux ${{ join(matrix.*, ' ') }}
+  #   runs-on: ubuntu-18.04
+
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include:
+  #         - compiler:     gcc
+  #           opts:         --disable-ssl
+  #         - compiler:     clang
+  #           opts:         --disable-ssl
+
+  #         - compiler:     gcc
+  #           testsuite:    test
+  #         - compiler:     clang
+  #           testsuite:    test
+
+  #         - compiler:     gcc
+  #           testsuite:    test
+  #           libs:         -ljemalloc
+  #         - compiler:     clang
+  #           testsuite:    test
+  #           libs:         -ljemalloc
+
+  #         - compiler:     gcc
+  #           m32:          m32
+  #           opts:         --disable-ssl
+
+  #   steps:
+  #   - name: checkout
+  #     if: github.event_name == 'push' || github.event_name == 'pull_request'
+  #     uses: actions/checkout@v2
+
+  #   # For weekly runs, don't update submodules
+  #   - name: checkout without submodule
+  #     if: github.event_name == 'schedule'
+  #     uses: actions/checkout@v2
+
+  #   # Weekly runs test using OVS master instead of the
+  #   # submodule.
+  #   - name: checkout OVS master
+  #     if: github.event_name == 'schedule'
+  #     uses: actions/checkout@v2
+  #     with:
+  #       repository: 'openvswitch/ovs'
+  #       path: 'ovs'
+  #       ref: 'master'
+
+  #   - name: update APT cache
+  #     run:  sudo apt update
+
+  #   - name: install required dependencies
+  #     run:  sudo apt install -y ${{ env.dependencies }}
+
+  #   - name: install libunbound libunwind
+  #     if:   matrix.m32 == ''
+  #     run:  sudo apt install -y libunbound-dev libunwind-dev
+
+  #   - name: install 32-bit dependencies
+  #     if:   matrix.m32 != ''
+  #     run:  sudo apt install -y ${{ env.m32_dependecies }}
+
+  #   - name: update PATH
+  #     run:  |
+  #       echo "$HOME/bin"        >> $GITHUB_PATH
+  #       echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+  #   - name: set up python
+  #     uses: actions/setup-python@v2
+  #     with:
+  #       python-version: '3.x'
+
+  #   - name: prepare
+  #     run:  ./.ci/linux-prepare.sh
+
+  #   - name: build
+  #     run:  ./.ci/linux-build.sh
+
+  #   - name: copy logs on failure
+  #     if: failure() || cancelled()
+  #     run: |
+  #       # upload-artifact@v2 throws exceptions if it tries to upload socket
+  #       # files and we could have some socket files in testsuite.dir.
+  #       # Also, upload-artifact@v2 doesn't work well enough with wildcards.
+  #       # So, we're just archiving everything here to avoid any issues.
+  #       mkdir logs
+  #       cp config.log ./logs/
+  #       cp -r ./*/_build/sub/tests/testsuite.* ./logs/ || true
+  #       tar -czvf logs.tgz logs/
+
+  #   - name: upload logs on failure
+  #     if: failure() || cancelled()
+  #     uses: actions/upload-artifact@v2
+  #     with:
+  #       name: logs-linux-${{ join(matrix.*, '-') }}
+  #       path: logs.tgz
+
+  # build-osx:
+  #   env:
+  #     CC:    clang
+  #     OPTS:  --disable-ssl
+
+  #   name:    osx clang --disable-ssl
+  #   runs-on: macos-latest
+
+  #   strategy:
+  #     fail-fast: false
+
+  #   steps:
+  #   - name: checkout
+  #     if: github.event_name == 'push' || github.event_name == 'pull_request'
+  #     uses: actions/checkout@v2
+  #     with:
+  #       submodules: recursive
+  #   # For weekly runs, don't update submodules
+  #   - name: checkout without submodule
+  #     if: github.event_name == 'schedule'
+  #     uses: actions/checkout@v2
+  #   # Weekly runs test using OVS master instead of the
+  #   # submodule.
+  #   - name: checkout OVS master
+  #     if: github.event_name == 'schedule'
+  #     uses: actions/checkout@v2
+  #     with:
+  #       repository: 'openvswitch/ovs'
+  #       path: 'ovs'
+  #       ref: 'master'
+  #   - name: install dependencies
+  #     run:  brew install automake libtool
+  #   - name: update PATH
+  #     run:  |
+  #       echo "$HOME/bin"        >> $GITHUB_PATH
+  #       echo "$HOME/.local/bin" >> $GITHUB_PATH
+  #   - name: set up python
+  #     uses: actions/setup-python@v2
+  #     with:
+  #       python-version: '3.x'
+  #   - name: prepare
+  #     run:  ./.ci/osx-prepare.sh
+  #   - name: build
+  #     run:  ./.ci/osx-build.sh
+  #   - name: upload logs on failure
+  #     if: failure()
+  #     uses: actions/upload-artifact@v2
+  #     with:
+  #       name: logs-osx-clang---disable-ssl
+  #       path: config.log
