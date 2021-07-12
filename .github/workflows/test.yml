@@ -17,10 +17,8 @@ jobs:
       m32_dependecies: gcc-multilib
       CC:          ${{ matrix.compiler }}
       LIBS:        ${{ matrix.libs }}
-      M32:         ${{ matrix.m32 }}
-      OPTS:        ${{ matrix.opts }}
-      TESTSUITE:   ${{ matrix.testsuite }}
-      ASAN:        ${{ matrix.asan }}
+      OPTS:        ${{ matrix.ssl }}
+      ASAN:        asan
 
     name: linux ${{ join(matrix.*, ' ') }}
     runs-on: ubuntu-20.04
@@ -28,50 +26,42 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        ovs:
+          - submodule
+          - v2.15.0
+          - v2.15.1
+          - branch-2.15
+          - master
+        compiler: [gcc, clang]
+        platform: [x64]
+        ssl: ['', '--disable-ssl']
+        libs: ['', '-ljemalloc']
         include:
           - compiler:     gcc
-            opts:         --disable-ssl
-          - compiler:     clang
-            opts:         --disable-ssl
-
-          - compiler:     gcc
-            testsuite:    system-test
-          - compiler:     clang
-            testsuite:    test
-            asan:         asan
-
-          - compiler:     gcc
-            testsuite:    test
-            libs:         -ljemalloc
-          - compiler:     clang
-            testsuite:    test
-            libs:         -ljemalloc
-
-          - compiler:     gcc
-            m32:          m32
-            opts:         --disable-ssl
+            ssl:          --disable-ssl
+            libs:         ''
+            platform:     x32
+            env:
+              M32:        m32
 
     steps:
-    - name: checkout
-      if: github.event_name == 'push' || github.event_name == 'pull_request'
+    - name: checkout with submodule
+      if: matrix.ovs == 'submodule'
       uses: actions/checkout@v2
       with:
         submodules: recursive
 
-    # For weekly runs, don't update submodules
     - name: checkout without submodule
-      if: github.event_name == 'schedule'
+      if: matrix.ovs != 'submodule'
       uses: actions/checkout@v2
 
-    # Weekly runs test using OVS master instead of the
-    # submodule.
-    - name: checkout OVS master
-      if: github.event_name == 'schedule'
+    - name: checkout OVS
+      if: matrix.ovs != 'submodule'
       uses: actions/checkout@v2
       with:
-        repository: 'openvswitch/ovs'
-        path: 'ovs'
-        ref: 'master'
+        repository: openvswitch/ovs
+        path: ovs
+        ref: ${{ matrix.ovs }}
 
     - name: update APT cache
       run:  sudo apt update
@@ -112,6 +102,26 @@ jobs:
     - name: build
       run:  ./.ci/linux-build.sh
 
+    - name: test
+      run: |
+        touch resolv.conf
+        export OVS_RESOLV_CONF=$(pwd)/resolv.conf
+        make check -j3 TESTSUITEFLAGS="-j4" RECHECK=yes
+        if [ $? -ne 0 ]; then
+          cat ./*/_build/sub/tests/testsuite.log tests/testsuite.log
+          exit 1
+        fi
+      if: matrix.ssl == ''
+
+    - name: system-test
+      run: |
+        make -j4 check-kernel RECHECK=yes
+        if [ $? -ne 0 ]; then
+          cat tests/system-kmod-testsuite.log
+          exit 1
+        fi
+      if: matrix.ssl == ''
+
     - name: copy logs on failure
       if: failure() || cancelled()
       run: |
@@ -141,9 +151,6 @@ jobs:
 
     name:    osx clang --disable-ssl
     runs-on: macos-latest
-
-    strategy:
-      fail-fast: false
 
     steps:
     - name: checkout
