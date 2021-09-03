@@ -1515,15 +1515,16 @@ function s_ROUTER_IN_DNAT():            Intern<Stage> { Stage{Ingress,  6, "lr_i
 function s_ROUTER_IN_ECMP_STATEFUL():   Intern<Stage> { Stage{Ingress,  7, "lr_in_ecmp_stateful"}.intern() }
 function s_ROUTER_IN_ND_RA_OPTIONS():   Intern<Stage> { Stage{Ingress,  8, "lr_in_nd_ra_options"}.intern() }
 function s_ROUTER_IN_ND_RA_RESPONSE():  Intern<Stage> { Stage{Ingress,  9, "lr_in_nd_ra_response"}.intern() }
-function s_ROUTER_IN_IP_ROUTING():      Intern<Stage> { Stage{Ingress, 10, "lr_in_ip_routing"}.intern() }
-function s_ROUTER_IN_IP_ROUTING_ECMP(): Intern<Stage> { Stage{Ingress, 11, "lr_in_ip_routing_ecmp"}.intern() }
-function s_ROUTER_IN_POLICY():          Intern<Stage> { Stage{Ingress, 12, "lr_in_policy"}.intern() }
-function s_ROUTER_IN_POLICY_ECMP():     Intern<Stage> { Stage{Ingress, 13, "lr_in_policy_ecmp"}.intern() }
-function s_ROUTER_IN_ARP_RESOLVE():     Intern<Stage> { Stage{Ingress, 14, "lr_in_arp_resolve"}.intern() }
-function s_ROUTER_IN_CHK_PKT_LEN():     Intern<Stage> { Stage{Ingress, 15, "lr_in_chk_pkt_len"}.intern() }
-function s_ROUTER_IN_LARGER_PKTS():     Intern<Stage> { Stage{Ingress, 16, "lr_in_larger_pkts"}.intern() }
-function s_ROUTER_IN_GW_REDIRECT():     Intern<Stage> { Stage{Ingress, 17, "lr_in_gw_redirect"}.intern() }
-function s_ROUTER_IN_ARP_REQUEST():     Intern<Stage> { Stage{Ingress, 18, "lr_in_arp_request"}.intern() }
+function s_ROUTER_IN_IP_ROUTING_PRE():  Intern<Stage> { Stage{Ingress, 10, "lr_in_ip_routing_pre"}.intern() }
+function s_ROUTER_IN_IP_ROUTING():      Intern<Stage> { Stage{Ingress, 11, "lr_in_ip_routing"}.intern() }
+function s_ROUTER_IN_IP_ROUTING_ECMP(): Intern<Stage> { Stage{Ingress, 12, "lr_in_ip_routing_ecmp"}.intern() }
+function s_ROUTER_IN_POLICY():          Intern<Stage> { Stage{Ingress, 13, "lr_in_policy"}.intern() }
+function s_ROUTER_IN_POLICY_ECMP():     Intern<Stage> { Stage{Ingress, 14, "lr_in_policy_ecmp"}.intern() }
+function s_ROUTER_IN_ARP_RESOLVE():     Intern<Stage> { Stage{Ingress, 15, "lr_in_arp_resolve"}.intern() }
+function s_ROUTER_IN_CHK_PKT_LEN():     Intern<Stage> { Stage{Ingress, 16, "lr_in_chk_pkt_len"}.intern() }
+function s_ROUTER_IN_LARGER_PKTS():     Intern<Stage> { Stage{Ingress, 17, "lr_in_larger_pkts"}.intern() }
+function s_ROUTER_IN_GW_REDIRECT():     Intern<Stage> { Stage{Ingress, 18, "lr_in_gw_redirect"}.intern() }
+function s_ROUTER_IN_ARP_REQUEST():     Intern<Stage> { Stage{Ingress, 19, "lr_in_arp_request"}.intern() }
 
 /* Logical router egress stages. */
 function s_ROUTER_OUT_UNDNAT():         Intern<Stage> { Stage{ Egress,  0, "lr_out_undnat"}.intern() }
