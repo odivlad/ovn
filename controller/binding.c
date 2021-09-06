@@ -2432,6 +2432,7 @@ delete_done:
             update_related_lport(pb, b_ctx_out);
             /* VTEP lports are claimed/released by ovn-controller-vteps.
              * We are not sure what changed. */
+            handled = false;
             b_ctx_out->non_vif_ports_changed = true;
             break;
 
