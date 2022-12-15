@@ -274,7 +274,8 @@ void inc_proc_northd_init(struct ovsdb_idl_loop *nb,
                                 sbrec_mac_binding_by_datapath);
 }
 
-void inc_proc_northd_run(struct ovsdb_idl_txn *ovnnb_txn,
+/* Returns true if the incremental processing ended up updating nodes. */
+bool inc_proc_northd_run(struct ovsdb_idl_txn *ovnnb_txn,
                          struct ovsdb_idl_txn *ovnsb_txn,
                          bool recompute) {
     engine_init_run();
@@ -313,6 +314,7 @@ void inc_proc_northd_run(struct ovsdb_idl_txn *ovnnb_txn,
     } else {
         engine_set_force_recompute(false);
     }
+    return engine_has_updated();
 }
 
 void inc_proc_northd_cleanup(void)
