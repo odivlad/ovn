@@ -101,7 +101,7 @@ jobs:
       with:
         key: linux-${{github.run_id}}-${{matrix.cfg.compiler}}-${{matrix.cfg.libs}}-${{matrix.cfg.sanitizers}}
         path: ./
-      if: ${{matrix.cfg.opts}} !~ '--disable-ssl'
+      if: ${{matrix.cfg.opts}} != '--disable-ssl'
 
     - name: copy logs on failure
       if: failure() || cancelled()
@@ -180,6 +180,23 @@ jobs:
     - name: check restore cache
       if: steps.restore-cache.outputs.cache-hit != 'true'
       run: exit 1
+
+    - name: update APT cache
+      run:  sudo apt update
+
+    - name: remove netcat-openbsd
+      run:  sudo apt remove -y netcat-openbsd
+
+    - name: install required dependencies
+      run:  sudo apt install -y ${{ env.dependencies }}
+
+    - name: install libunbound libunwind
+      if:   matrix.cfg.arch != 'x86'
+      run:  sudo apt install -y libunbound-dev libunwind-dev
+
+    - name: install 32-bit dependencies
+      if:   matrix.cfg.arch == 'x86'
+      run:  sudo apt install -y ${{ env.m32_dependecies }}
 
     - name: update PATH
       run:  |

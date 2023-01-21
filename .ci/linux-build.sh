@@ -54,7 +54,7 @@ configure_$CC
 
 if [ "$TESTSUITE" ]; then
     if [ "$TESTSUITE" = "system-test" ]; then
-        if [ ! "$NO_BUILD" ]; then
+        if [ -z "$NO_BUILD" ]; then
             configure_ovn $OPTS
             make -j4 || { cat config.log; exit 1; }
         fi
@@ -66,7 +66,7 @@ if [ "$TESTSUITE" ]; then
     else
         # 'distcheck' will reconfigure with required options.
         # Now we only need to prepare the Makefile without sparse-wrapped CC.
-        if [ ! "$NO_BUILD" ]; then
+        if [ -z "$NO_BUILD" ]; then
             configure_ovn
         fi
 
