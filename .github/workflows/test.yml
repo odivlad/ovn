@@ -27,37 +27,20 @@ jobs:
       TEST_RANGE:  ${{ matrix.cfg.test_range }}
       SANITIZERS:  ${{ matrix.cfg.sanitizers }}
 
-    name: linux ${{ join(matrix.cfg.*, ' ') }}
+    name: Build linux ${{ join(matrix.cfg.*, ' ') }}
     runs-on: ubuntu-20.04
 
     strategy:
       fail-fast: false
       matrix:
         cfg:
+        - { compiler: gcc }
+        - { compiler: gcc, libs: -ljemalloc }
         - { compiler: gcc, opts: --disable-ssl }
+        - { compiler: gcc, opts: --disable-ssl, arch: x86 }
+        - { compiler: clang, libs: -ljemalloc }
         - { compiler: clang, opts: --disable-ssl }
-        - { compiler: gcc, testsuite: test, test_range: "-500" }
-        - { compiler: gcc, testsuite: test, test_range: "501-1000" }
-        - { compiler: gcc, testsuite: test, test_range: "1001-" }
-        - { compiler: clang, testsuite: test, sanitizers: sanitizers, test_range: "-300" }
-        - { compiler: clang, testsuite: test, sanitizers: sanitizers, test_range: "301-600" }
-        - { compiler: clang, testsuite: test, sanitizers: sanitizers, test_range: "601-900" }
-        - { compiler: clang, testsuite: test, sanitizers: sanitizers, test_range: "901-1200" }
-        - { compiler: clang, testsuite: test, sanitizers: sanitizers, test_range: "1201-" }
-        - { compiler: gcc, testsuite: test, libs: -ljemalloc, test_range: "-500" }
-        - { compiler: gcc, testsuite: test, libs: -ljemalloc, test_range: "501-1000" }
-        - { compiler: gcc, testsuite: test, libs: -ljemalloc, test_range: "1001-" }
-        - { compiler: clang, testsuite: test, libs: -ljemalloc, test_range: "-500" }
-        - { compiler: clang, testsuite: test, libs: -ljemalloc, test_range: "501-1000" }
-        - { compiler: clang, testsuite: test, libs: -ljemalloc, test_range: "1001-" }
-        - { compiler: gcc, testsuite: system-test, test_range: "-100" }
-        - { compiler: gcc, testsuite: system-test, test_range: "101-200" }
-        - { compiler: gcc, testsuite: system-test, test_range: "201-" }
-        - { compiler: clang, testsuite: system-test, sanitizers: sanitizers, test_range: "-100" }
-        - { compiler: clang, testsuite: system-test, sanitizers: sanitizers, test_range: "101-200" }
-        - { compiler: clang, testsuite: system-test, sanitizers: sanitizers, test_range: "201-" }
-        - { arch: x86, compiler: gcc, opts: --disable-ssl }
-
+        - { compiler: clang, sanitizers: sanitizers }
     steps:
     - name: checkout
       if: github.event_name == 'push' || github.event_name == 'pull_request'
@@ -113,6 +96,106 @@ jobs:
     - name: build
       run:  ./.ci/linux-build.sh
 
+    - name: save cache
+      uses: actions/cache/save@v3
+      with:
+        key: linux-${{github.run_id}}-${{matrix.cfg.compiler}}-${{matrix.cfg.libs}}-${{matrix.cfg.sanitizers}}
+        path: ./
+      if: ${{matrix.cfg.opts}} !~ '--disable-ssl'
+
+    - name: copy logs on failure
+      if: failure() || cancelled()
+      run: |
+        # upload-artifact@v3 throws exceptions if it tries to upload socket
+        # files and we could have some socket files in testsuite.dir.
+        # Also, upload-artifact@v3 doesn't work well enough with wildcards.
+        # So, we're just archiving everything here to avoid any issues.
+        mkdir logs
+        cp config.log ./logs/
+        cp -r ./*/_build/sub/tests/testsuite.* ./logs/ || true
+        # System tests are run as root, need to adjust permissions.
+        sudo chmod -R +r ./tests/system-kmod-testsuite.* || true
+        cp -r ./tests/system-kmod-testsuite.* ./logs/ || true
+        tar -czvf logs.tgz logs/
+
+    - name: upload logs on failure
+      if: failure() || cancelled()
+      uses: actions/upload-artifact@v3
+      with:
+        name: logs-linux-${{ join(matrix.cfg.*, '-') }}
+        path: logs.tgz
+
+  test-linux:
+    needs: build-linux
+    env:
+      dependencies: |
+        automake libtool gcc bc libjemalloc2 libjemalloc-dev    \
+        libssl-dev llvm-dev libelf-dev libnuma-dev libpcap-dev  \
+        selinux-policy-dev ncat python3-scapy isc-dhcp-server
+      m32_dependecies: gcc-multilib
+      ARCH:        ${{ matrix.cfg.arch }}
+      CC:          ${{ matrix.cfg.compiler }}
+      LIBS:        ${{ matrix.cfg.libs }}
+      OPTS:        ${{ matrix.cfg.opts }}
+      TESTSUITE:   ${{ matrix.cfg.testsuite }}
+      TEST_RANGE:  ${{ matrix.cfg.test_range }}
+      SANITIZERS:  ${{ matrix.cfg.sanitizers }}
+
+    name: Test linux ${{ join(matrix.cfg.*, ' ') }}
+    runs-on: ubuntu-20.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        cfg:
+        - { compiler: gcc, testsuite: test, test_range: "-500" }
+        - { compiler: gcc, testsuite: test, test_range: "501-1000" }
+        - { compiler: gcc, testsuite: test, test_range: "1001-" }
+        - { compiler: clang, testsuite: test, sanitizers: sanitizers, test_range: "-300" }
+        - { compiler: clang, testsuite: test, sanitizers: sanitizers, test_range: "301-600" }
+        - { compiler: clang, testsuite: test, sanitizers: sanitizers, test_range: "601-900" }
+        - { compiler: clang, testsuite: test, sanitizers: sanitizers, test_range: "901-1200" }
+        - { compiler: clang, testsuite: test, sanitizers: sanitizers, test_range: "1201-" }
+        - { compiler: gcc, testsuite: test, libs: -ljemalloc, test_range: "-500" }
+        - { compiler: gcc, testsuite: test, libs: -ljemalloc, test_range: "501-1000" }
+        - { compiler: gcc, testsuite: test, libs: -ljemalloc, test_range: "1001-" }
+        - { compiler: clang, testsuite: test, libs: -ljemalloc, test_range: "-500" }
+        - { compiler: clang, testsuite: test, libs: -ljemalloc, test_range: "501-1000" }
+        - { compiler: clang, testsuite: test, libs: -ljemalloc, test_range: "1001-" }
+        - { compiler: gcc, testsuite: system-test, test_range: "-100" }
+        - { compiler: gcc, testsuite: system-test, test_range: "101-200" }
+        - { compiler: gcc, testsuite: system-test, test_range: "201-" }
+        - { compiler: clang, testsuite: system-test, sanitizers: sanitizers, test_range: "-100" }
+        - { compiler: clang, testsuite: system-test, sanitizers: sanitizers, test_range: "101-200" }
+        - { compiler: clang, testsuite: system-test, sanitizers: sanitizers, test_range: "201-" }
+
+    steps:
+    - name: restore cache
+      id: restore-cache
+      uses: actions/cache/restore@v3
+      with:
+        key: linux-${{github.run_id}}-${{matrix.cfg.compiler}}-${{matrix.cfg.libs}}-${{matrix.cfg.sanitizers}}
+        path: ./
+
+    - name: check restore cache
+      if: steps.restore-cache.outputs.cache-hit != 'true'
+      run: exit 1
+
+    - name: update PATH
+      run:  |
+        echo "$HOME/bin"        >> $GITHUB_PATH
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: set up python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: build
+      run:  ./.ci/linux-build.sh
+      env:
+        NO_BUILD: true
+
     - name: copy logs on failure
       if: failure() || cancelled()
       run: |
@@ -140,7 +223,7 @@ jobs:
       CC:    clang
       OPTS:  --disable-ssl
 
-    name:    osx clang --disable-ssl
+    name: build osx clang --disable-ssl
     runs-on: macos-latest
 
     strategy:

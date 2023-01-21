@@ -54,8 +54,10 @@ configure_$CC
 
 if [ "$TESTSUITE" ]; then
     if [ "$TESTSUITE" = "system-test" ]; then
-        configure_ovn $OPTS
-        make -j4 || { cat config.log; exit 1; }
+        if [ ! "$NO_BUILD" ]; then
+            configure_ovn $OPTS
+            make -j4 || { cat config.log; exit 1; }
+        fi
         if ! sudo make -j4 check-kernel TESTSUITEFLAGS="$TEST_RANGE" RECHECK=yes; then
             # system-kmod-testsuite.log is necessary for debugging.
             cat tests/system-kmod-testsuite.log
@@ -64,7 +66,9 @@ if [ "$TESTSUITE" ]; then
     else
         # 'distcheck' will reconfigure with required options.
         # Now we only need to prepare the Makefile without sparse-wrapped CC.
-        configure_ovn
+        if [ ! "$NO_BUILD" ]; then
+            configure_ovn
+        fi
 
         export DISTCHECK_CONFIGURE_FLAGS="$OPTS"
         if ! make distcheck CFLAGS="${COMMON_CFLAGS} ${OVN_CFLAGS}" -j4 \
