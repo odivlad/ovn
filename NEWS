@@ -1,3 +1,7 @@
+Post v22.09.1
+-------------
+  - Add ovn-ctl commands for (re)starting/stopping OVSDB relay for OVN SB DB.
+
 OVN v22.09.1 - 20 Dec 2022
 --------------------------
   - Bug fixes
