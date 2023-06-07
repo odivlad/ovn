@@ -28,7 +28,7 @@
 #include "openvswitch/ofp-meter.h"
 #include "openvswitch/ofp-util.h"
 #include "ovn/features.h"
-#include "controller/ofctrl.h"
+#include "lib/ovn-util.h"
 
 VLOG_DEFINE_THIS_MODULE(features);
 
@@ -85,7 +85,7 @@ ovs_feature_rconn_setup(const char *br_name)
     }
 
     if (!rconn_is_connected(swconn)) {
-        char *target = xasprintf("unix:%s/%s.mgmt", ovs_rundir(), br_name);
+        char *target = get_of_target_by_bridge(br_name, true);
         if (strcmp(target, rconn_get_target(swconn))) {
             VLOG_INFO("%s: connecting to switch", target);
             rconn_connect(swconn, target, target);

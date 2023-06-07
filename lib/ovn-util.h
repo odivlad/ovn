@@ -403,4 +403,6 @@ bool flow_collector_ids_lookup(const struct flow_collector_ids *, uint32_t);
 void flow_collector_ids_destroy(struct flow_collector_ids *);
 void flow_collector_ids_clear(struct flow_collector_ids *);
 
+char *get_of_target_by_bridge(const char *br_name, bool active);
+
 #endif /* OVN_UTIL_H */

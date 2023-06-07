@@ -45,6 +45,7 @@
 #include "ovn/actions.h"
 #include "lib/extend-table.h"
 #include "lib/lb.h"
+#include "lib/ovn-util.h"
 #include "openvswitch/poll-loop.h"
 #include "physical.h"
 #include "openvswitch/rconn.h"
@@ -773,7 +774,7 @@ ofctrl_run(const struct ovsrec_bridge *br_int,
            const struct ovsrec_open_vswitch_table *ovs_table,
            struct shash *pending_ct_zones)
 {
-    char *target = xasprintf("unix:%s/%s.mgmt", ovs_rundir(), br_int->name);
+    char *target = get_of_target_by_bridge(br_int->name, true);
     bool reconnected = false;
 
     if (strcmp(target, rconn_get_target(swconn))) {

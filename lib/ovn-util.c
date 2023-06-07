@@ -20,6 +20,7 @@
 #include <unistd.h>
 
 #include "daemon.h"
+#include "dirs.h"
 #include "include/ovn/actions.h"
 #include "openvswitch/ofp-parse.h"
 #include "openvswitch/vlog.h"
@@ -1125,4 +1126,13 @@ void flow_collector_ids_clear(struct flow_collector_ids *ids)
 {
     flow_collector_ids_destroy(ids);
     flow_collector_ids_init(ids);
+}
+
+/* Return OpenFlow target by integration bridge name.
+ * For active connection scheme is "unix", for non-active - "punix".
+ * Note, the caller must free() returning value. */
+char *
+get_of_target_by_bridge(const char *br_name, bool active) {
+    return xasprintf("%sunix:%s/%s.mgmt",
+                     active ? "" : "p", ovs_rundir(), br_name);
 }
