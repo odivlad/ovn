@@ -531,6 +531,30 @@ process_br_int(struct ovsdb_idl_txn *ovs_idl_txn,
                                                     datapath_type);
                 }
             }
+
+            /* Configure controller for integration bridge to explicitely
+             * disable OpenFlow inactivity probes from OVS to ovn-controller.
+             * It is assumed that only one controller may exist for
+             * integration bridge. */
+            int64_t msecs = 0;
+            struct ovsrec_controller *cntr;
+            char *target = get_of_target_by_bridge(br_int->name, false);
+            if (br_int->n_controller == 1 &&
+                !strcmp(br_int->controller[0]->target, target)) {
+                cntr = br_int->controller[0];
+                if (!cntr->n_inactivity_probe || cntr->inactivity_probe[0]) {
+                    VLOG_INFO("Reset inactivity probe on controller for %s...",
+                              br_int->name);
+                    ovsrec_controller_set_inactivity_probe(cntr, &msecs, 1);
+                }
+            } else {
+                VLOG_INFO("Creating controller for %s...", br_int->name);
+                cntr = ovsrec_controller_insert(ovs_idl_txn);
+                ovsrec_controller_set_target(cntr, target);
+                ovsrec_controller_set_inactivity_probe(cntr, &msecs, 1);
+                ovsrec_bridge_set_controller(br_int, &cntr, 1);
+            }
+            free(target);
         }
     }
     *br_int_ = br_int;
@@ -1016,11 +1040,15 @@ ctrl_register_ovs_idl(struct ovsdb_idl *ovs_idl)
     ovsdb_idl_add_table(ovs_idl, &ovsrec_table_interface);
     ovsdb_idl_add_table(ovs_idl, &ovsrec_table_port);
     ovsdb_idl_add_table(ovs_idl, &ovsrec_table_bridge);
+    ovsdb_idl_add_column(ovs_idl, &ovsrec_bridge_col_controller);
     ovsdb_idl_add_column(ovs_idl, &ovsrec_bridge_col_ports);
     ovsdb_idl_add_column(ovs_idl, &ovsrec_bridge_col_name);
     ovsdb_idl_add_column(ovs_idl, &ovsrec_bridge_col_fail_mode);
     ovsdb_idl_add_column(ovs_idl, &ovsrec_bridge_col_other_config);
     ovsdb_idl_add_column(ovs_idl, &ovsrec_bridge_col_external_ids);
+    ovsdb_idl_add_table(ovs_idl, &ovsrec_table_controller);
+    ovsdb_idl_add_column(ovs_idl, &ovsrec_controller_col_inactivity_probe);
+    ovsdb_idl_add_column(ovs_idl, &ovsrec_controller_col_target);
     ovsdb_idl_add_table(ovs_idl, &ovsrec_table_ssl);
     ovsdb_idl_add_column(ovs_idl, &ovsrec_ssl_col_bootstrap_ca_cert);
     ovsdb_idl_add_column(ovs_idl, &ovsrec_ssl_col_ca_cert);
