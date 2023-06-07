@@ -1,5 +1,9 @@
 Post v23.06.0
 -------------
+  - Disable OpenFlow inactivity probing. OF connection is established over unix
+    socket, which is a reliable connection and doesn't require additional
+    probing.  external_ids:ovn-openflow-probe-interval configuration option for
+    ovn-controller was deleted.
 
 OVN v23.06.0 - 01 Jun 2023
 --------------------------
