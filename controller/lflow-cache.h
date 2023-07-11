@@ -21,6 +21,7 @@
 #include "openvswitch/dynamic-string.h"
 #include "openvswitch/hmap.h"
 #include "openvswitch/uuid.h"
+#include "memory-trim.h"
 #include "simap.h"
 
 struct lflow_cache;
@@ -56,7 +57,7 @@ struct lflow_cache_value {
     };
 };
 
-struct lflow_cache *lflow_cache_create(void);
+struct lflow_cache *lflow_cache_create(struct memory_trimmer *);
 void lflow_cache_flush(struct lflow_cache *);
 void lflow_cache_destroy(struct lflow_cache *);
 void lflow_cache_enable(struct lflow_cache *, bool enabled, uint32_t capacity,

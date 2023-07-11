@@ -108,7 +108,8 @@ test_lflow_cache_stats__(struct lflow_cache *lc)
 static void
 test_lflow_cache_operations(struct ovs_cmdl_context *ctx)
 {
-    struct lflow_cache *lc = lflow_cache_create();
+    struct memory_trimmer *mt = memory_trimmer_create();
+    struct lflow_cache *lc = lflow_cache_create(mt);
     struct expr *e = expr_create_boolean(true);
     bool enabled = !strcmp(ctx->argv[1], "true");
     struct uuid *lflow_uuids = NULL;
@@ -235,6 +236,7 @@ test_lflow_cache_operations(struct ovs_cmdl_context *ctx)
         test_lflow_cache_stats__(lc);
     }
 done:
+    memory_trimmer_destroy(mt);
     lflow_cache_destroy(lc);
     free(lflow_uuids);
     expr_destroy(e);
@@ -259,7 +261,7 @@ test_lflow_cache_negative(struct ovs_cmdl_context *ctx OVS_UNUSED)
 
     struct lflow_cache *lcs[] = {
         NULL,
-        lflow_cache_create(),
+        lflow_cache_create(memory_trimmer_create()),
     };
 
     for (size_t i = 0; i < ARRAY_SIZE(lcs); i++) {

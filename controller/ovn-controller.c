@@ -3967,8 +3967,9 @@ main(int argc, char *argv[])
     unsigned int ovnsb_cond_seqno = UINT_MAX;
     unsigned int ovnsb_expected_cond_seqno = UINT_MAX;
 
+    struct memory_trimmer *mt = memory_trimmer_create();
     struct controller_engine_ctx ctrl_engine_ctx = {
-        .lflow_cache = lflow_cache_create(),
+        .lflow_cache = lflow_cache_create(mt),
         .if_mgr = if_status_mgr_create(),
     };
     struct if_status_mgr *if_mgr = ctrl_engine_ctx.if_mgr;
@@ -4329,6 +4330,10 @@ main(int argc, char *argv[])
                 engine_set_force_recompute(false);
             }
 
+            if (engine_has_updated()) {
+                memory_trimmer_record_activity(mt);
+            }
+
             store_nb_cfg(ovnsb_idl_txn, ovs_idl_txn, chassis_private,
                          br_int, delay_nb_cfg_report);
 
@@ -4431,6 +4436,7 @@ loop_done:
         }
     }
 
+    memory_trimmer_destroy(mt);
     engine_set_context(NULL);
     engine_cleanup();
 

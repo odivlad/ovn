@@ -83,14 +83,14 @@ static void lflow_cache_delete__(struct lflow_cache *lc,
 static void lflow_cache_trim__(struct lflow_cache *lc, bool force);
 
 struct lflow_cache *
-lflow_cache_create(void)
+lflow_cache_create(struct memory_trimmer *mt)
 {
     struct lflow_cache *lc = xzalloc(sizeof *lc);
 
     for (size_t i = 0; i < LCACHE_T_MAX; i++) {
         hmap_init(&lc->entries[i]);
     }
-    lc->mt = memory_trimmer_create();
+    lc->mt = mt;
 
     return lc;
 }
