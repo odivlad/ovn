@@ -24,7 +24,6 @@
 #include "coverage.h"
 #include "lflow-cache.h"
 #include "lib/uuid.h"
-#include "memory-trim.h"
 #include "openvswitch/vlog.h"
 #include "ovn/expr.h"
 
@@ -83,14 +82,14 @@ static void lflow_cache_delete__(struct lflow_cache *lc,
 static void lflow_cache_trim__(struct lflow_cache *lc, bool force);
 
 struct lflow_cache *
-lflow_cache_create(void)
+lflow_cache_create(struct memory_trimmer *mt)
 {
     struct lflow_cache *lc = xzalloc(sizeof *lc);
 
     for (size_t i = 0; i < LCACHE_T_MAX; i++) {
         hmap_init(&lc->entries[i]);
     }
-    lc->mt = memory_trimmer_create();
+    lc->mt = mt;
 
     return lc;
 }
@@ -124,7 +123,6 @@ lflow_cache_destroy(struct lflow_cache *lc)
     for (size_t i = 0; i < LCACHE_T_MAX; i++) {
         hmap_destroy(&lc->entries[i]);
     }
-    memory_trimmer_destroy(lc->mt);
     free(lc);
 }
 
