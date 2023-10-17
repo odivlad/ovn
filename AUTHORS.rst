@@ -142,6 +142,7 @@ Eric Garver                        e@erig.me
 Eric Sesterhenn                    eric.sesterhenn@lsexperts.de
 Ethan J. Jackson                   ejj@eecs.berkeley.edu
 Ethan Rahn                         erahn@arista.com
+Evgenii Kovalev                    ekovalev.off@gmail.com
 Eziz Durdyyev                      ezizdurdy@gmail.com
 Fabrizio D'Angelo                  fdangelo@redhat.com
 Flavio Fernandes                   flavio@flaviof.com
