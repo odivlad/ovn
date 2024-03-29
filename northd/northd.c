@@ -1009,7 +1009,7 @@ build_datapaths(struct ovsdb_idl_txn *ovnsb_txn,
     }
 
     /* Assign new tunnel ids where needed. */
-    uint32_t hint = 0;
+    uint32_t hint = OVN_MIN_DP_KEY_LOCAL;
     LIST_FOR_EACH_SAFE (od, list, &both) {
         ovn_datapath_allocate_key(sbrec_chassis_table,
                                   datapaths, &dp_tnlids, od, &hint);
