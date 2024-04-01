@@ -689,23 +689,21 @@ next_tnlid(uint32_t tnlid, uint32_t min, uint32_t max)
     return tnlid + 1 <= max ? tnlid + 1 : min;
 }
 
-static uint32_t
-prev_tnlid(uint32_t tnlid, uint32_t min, uint32_t max)
-{
-    return tnlid - 1 >= min ? tnlid - 1 : max;
-}
-
 uint32_t
 ovn_allocate_tnlid(struct hmap *set, const char *name, uint32_t min,
                    uint32_t max, uint32_t *hint)
 {
-    for (uint32_t tnlid = *hint; tnlid != prev_tnlid(*hint, min, max);
-         tnlid = next_tnlid(tnlid, min, max)) {
+    /* Normalize hint, because it can be outside of [min, max]. */
+    *hint = next_tnlid(*hint, min, max);
+
+    uint32_t tnlid = *hint;
+    do {
         if (ovn_add_tnlid(set, tnlid)) {
             *hint = tnlid;
             return tnlid;
         }
-    }
+        tnlid = next_tnlid(tnlid, min, max);
+    } while (tnlid != *hint);
 
     static struct vlog_rate_limit rl = VLOG_RATE_LIMIT_INIT(1, 1);
     VLOG_WARN_RL(&rl, "all %s tunnel ids exhausted", name);
