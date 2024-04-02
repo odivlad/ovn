@@ -307,4 +307,8 @@ void bfd_cleanup_connections(const struct nbrec_bfd_table *,
 void run_update_worker_pool(int n_threads);
 
 const char *northd_get_svc_monitor_mac(void);
+void
+init_vxlan_mode(const struct smap *nb_options,
+                const struct sbrec_chassis_table *sbrec_chassis_table);
+
 #endif /* NORTHD_H */
