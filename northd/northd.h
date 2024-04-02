@@ -274,4 +274,8 @@ void bfd_cleanup_connections(struct lflow_input *input_data,
                              struct hmap *bfd_map);
 void run_update_worker_pool(int n_threads);
 
+void
+init_vxlan_mode(const struct smap *nb_options,
+                const struct sbrec_chassis_table *sbrec_chassis_table);
+
 #endif /* NORTHD_H */

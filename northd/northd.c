@@ -83,6 +83,10 @@ static bool use_ct_inv_match = true;
  */
 static bool default_acl_drop;
 
+/* If this option is 'true' northd will use limited 24-bit space for datapath
+ * and ports tunnel key allocation (12 bits for each instead of default 16). */
+static bool vxlan_mode;
+
 #define MAX_OVN_TAGS 4096
 
 /* Pipeline stages. */
@@ -1281,24 +1285,31 @@ join_datapaths(struct northd_input *input_data,
     }
 }
 
-static bool
-is_vxlan_mode(struct northd_input *input_data)
+void
+init_vxlan_mode(const struct smap *nb_options,
+                const struct sbrec_chassis_table *sbrec_chassis_table)
 {
+    if (smap_get_bool(nb_options, "disable_vxlan_mode", false)) {
+        vxlan_mode = false;
+        return;
+    }
+
     const struct sbrec_chassis *chassis;
-    SBREC_CHASSIS_TABLE_FOR_EACH (chassis, input_data->sbrec_chassis) {
+    SBREC_CHASSIS_TABLE_FOR_EACH (chassis, sbrec_chassis_table) {
         for (int i = 0; i < chassis->n_encaps; i++) {
             if (!strcmp(chassis->encaps[i]->type, "vxlan")) {
-                return true;
+                vxlan_mode = true;
+                return;
             }
         }
     }
-    return false;
+    vxlan_mode = false;
 }
 
 static uint32_t
-get_ovn_max_dp_key_local(struct northd_input *input_data)
+get_ovn_max_dp_key_local(void)
 {
-    if (is_vxlan_mode(input_data)) {
+    if (vxlan_mode) {
         /* OVN_MAX_DP_GLOBAL_NUM doesn't apply for vxlan mode. */
         return OVN_MAX_DP_VXLAN_KEY;
     }
@@ -1306,15 +1317,14 @@ get_ovn_max_dp_key_local(struct northd_input *input_data)
 }
 
 static void
-ovn_datapath_allocate_key(struct northd_input *input_data,
-                          struct hmap *datapaths, struct hmap *dp_tnlids,
+ovn_datapath_allocate_key(struct hmap *datapaths, struct hmap *dp_tnlids,
                           struct ovn_datapath *od, uint32_t *hint)
 {
     if (!od->tunnel_key) {
         od->tunnel_key = ovn_allocate_tnlid(dp_tnlids, "datapath",
-                                    OVN_MIN_DP_KEY_LOCAL,
-                                    get_ovn_max_dp_key_local(input_data),
-                                    hint);
+                                            OVN_MIN_DP_KEY_LOCAL,
+                                            get_ovn_max_dp_key_local(),
+                                            hint);
         if (!od->tunnel_key) {
             if (od->sb) {
                 sbrec_datapath_binding_delete(od->sb);
@@ -1326,8 +1336,7 @@ ovn_datapath_allocate_key(struct northd_input *input_data,
 }
 
 static void
-ovn_datapath_assign_requested_tnl_id(struct northd_input *input_data,
-                                     struct hmap *dp_tnlids,
+ovn_datapath_assign_requested_tnl_id(struct hmap *dp_tnlids,
                                      struct ovn_datapath *od)
 {
     const struct smap *other_config = (od->nbs
@@ -1336,8 +1345,7 @@ ovn_datapath_assign_requested_tnl_id(struct northd_input *input_data,
     uint32_t tunnel_key = smap_get_int(other_config, "requested-tnl-key", 0);
     if (tunnel_key) {
         const char *interconn_ts = smap_get(other_config, "interconn-ts");
-        if (!interconn_ts && is_vxlan_mode(input_data) &&
-            tunnel_key >= 1 << 12) {
+        if (!interconn_ts && vxlan_mode && tunnel_key >= 1 << 12) {
             static struct vlog_rate_limit rl = VLOG_RATE_LIMIT_INIT(1, 1);
             VLOG_WARN_RL(&rl, "Tunnel key %"PRIu32" for datapath %s is "
                          "incompatible with VXLAN", tunnel_key,
@@ -1380,10 +1388,10 @@ build_datapaths(struct northd_input *input_data,
     struct hmap dp_tnlids = HMAP_INITIALIZER(&dp_tnlids);
     struct ovn_datapath *od;
     LIST_FOR_EACH (od, list, &both) {
-        ovn_datapath_assign_requested_tnl_id(input_data, &dp_tnlids, od);
+        ovn_datapath_assign_requested_tnl_id(&dp_tnlids, od);
     }
     LIST_FOR_EACH (od, list, &nb_only) {
-        ovn_datapath_assign_requested_tnl_id(input_data, &dp_tnlids, od);
+        ovn_datapath_assign_requested_tnl_id(&dp_tnlids, od);
     }
 
     /* Keep nonconflicting tunnel IDs that are already assigned. */
@@ -1396,12 +1404,10 @@ build_datapaths(struct northd_input *input_data,
     /* Assign new tunnel ids where needed. */
     uint32_t hint = 0;
     LIST_FOR_EACH_SAFE (od, list, &both) {
-        ovn_datapath_allocate_key(input_data,
-                                  datapaths, &dp_tnlids, od, &hint);
+        ovn_datapath_allocate_key(datapaths, &dp_tnlids, od, &hint);
     }
     LIST_FOR_EACH_SAFE (od, list, &nb_only) {
-        ovn_datapath_allocate_key(input_data,
-                                  datapaths, &dp_tnlids, od, &hint);
+        ovn_datapath_allocate_key(datapaths, &dp_tnlids, od, &hint);
     }
 
     /* Sync tunnel ids from nb to sb. */
@@ -4403,16 +4409,14 @@ ovn_port_add_tnlid(struct ovn_port *op, uint32_t tunnel_key)
 }
 
 static void
-ovn_port_assign_requested_tnl_id(struct northd_input *input_data,
-                                 struct ovn_port *op)
+ovn_port_assign_requested_tnl_id(struct ovn_port *op)
 {
     const struct smap *options = (op->nbsp
                                   ? &op->nbsp->options
                                   : &op->nbrp->options);
     uint32_t tunnel_key = smap_get_int(options, "requested-tnl-key", 0);
     if (tunnel_key) {
-        if (is_vxlan_mode(input_data) &&
-                tunnel_key >= OVN_VXLAN_MIN_MULTICAST) {
+        if (vxlan_mode && tunnel_key >= OVN_VXLAN_MIN_MULTICAST) {
             static struct vlog_rate_limit rl = VLOG_RATE_LIMIT_INIT(1, 1);
             VLOG_WARN_RL(&rl, "Tunnel key %"PRIu32" for port %s "
                          "is incompatible with VXLAN",
@@ -4430,12 +4434,10 @@ ovn_port_assign_requested_tnl_id(struct northd_input *input_data,
 }
 
 static void
-ovn_port_allocate_key(struct northd_input *input_data,
-                      struct hmap *ports,
-                      struct ovn_port *op)
+ovn_port_allocate_key(struct hmap *ports, struct ovn_port *op)
 {
     if (!op->tunnel_key) {
-        uint8_t key_bits = is_vxlan_mode(input_data)? 12 : 16;
+        uint8_t key_bits = vxlan_mode ? 12 : 16;
         op->tunnel_key = ovn_allocate_tnlid(&op->od->port_tnlids, "port",
                                             1, (1u << (key_bits - 1)) - 1,
                                             &op->od->port_key_hint);
@@ -4480,10 +4482,10 @@ build_ports(struct northd_input *input_data,
     /* Assign explicitly requested tunnel ids first. */
     struct ovn_port *op;
     LIST_FOR_EACH (op, list, &both) {
-        ovn_port_assign_requested_tnl_id(input_data, op);
+        ovn_port_assign_requested_tnl_id(op);
     }
     LIST_FOR_EACH (op, list, &nb_only) {
-        ovn_port_assign_requested_tnl_id(input_data, op);
+        ovn_port_assign_requested_tnl_id(op);
     }
 
     /* Keep nonconflicting tunnel IDs that are already assigned. */
@@ -4495,10 +4497,10 @@ build_ports(struct northd_input *input_data,
 
     /* Assign new tunnel ids where needed. */
     LIST_FOR_EACH_SAFE (op, list, &both) {
-        ovn_port_allocate_key(input_data, ports, op);
+        ovn_port_allocate_key(ports, op);
     }
     LIST_FOR_EACH_SAFE (op, list, &nb_only) {
-        ovn_port_allocate_key(input_data, ports, op);
+        ovn_port_allocate_key(ports, op);
     }
 
     /* For logical ports that are in both databases, update the southbound
@@ -15595,7 +15597,9 @@ ovnnb_db_run(struct northd_input *input_data,
         smap_replace(&options, "svc_monitor_mac", svc_monitor_mac);
     }
 
-    char *max_tunid = xasprintf("%d", get_ovn_max_dp_key_local(input_data));
+    init_vxlan_mode(&options, input_data->sbrec_chassis);
+
+    char *max_tunid = xasprintf("%d", get_ovn_max_dp_key_local());
     smap_replace(&options, "max_tunid", max_tunid);
     free(max_tunid);
 
