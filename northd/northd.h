@@ -376,4 +376,8 @@ bool check_sb_lb_duplicates(const struct sbrec_load_balancer_table *);
 void sync_pbs(struct ovsdb_idl_txn *, struct hmap *ls_ports);
 bool sync_pbs_for_northd_ls_changes(struct tracked_ls_changes *);
 
+void
+init_vxlan_mode(const struct smap *nb_options,
+                const struct sbrec_chassis_table *sbrec_chassis_table);
+
 #endif /* NORTHD_H */
