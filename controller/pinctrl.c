@@ -6564,6 +6564,9 @@ struct svc_monitor {
     uint32_t port_key;
     uint32_t proto_port; /* tcp/udp port */
 
+    struct eth_addr src_mac;
+    ovs_be32 src_ip;
+
     struct eth_addr ea;
     long long int timestamp;
     bool is_ip6;
@@ -6749,6 +6752,9 @@ sync_svc_monitors(struct ovsdb_idl_txn *ovnsb_idl_txn,
                 smap_get_int(&svc_mon->options, "failure_count", 1);
             svc_mon->n_success = 0;
             svc_mon->n_failures = 0;
+
+            eth_addr_from_string(sb_svc_mon->src_mac, &svc_mon->src_mac);
+            ip_parse(sb_svc_mon->src_ip, &svc_mon->src_ip);
 
             hmap_insert(&svc_monitors_map, &svc_mon->hmap_node, hash);
             ovs_list_push_back(&svc_monitors, &svc_mon->list_node);
@@ -7507,14 +7513,10 @@ svc_monitor_send_tcp_health_check__(struct rconn *swconn,
     uint64_t packet_stub[128 / 8];
     struct dp_packet packet;
 
-    struct eth_addr eth_src;
-    eth_addr_from_string(svc_mon->sb_svc_mon->src_mac, &eth_src);
-    ovs_be32 ip4_src;
-    ip_parse(svc_mon->sb_svc_mon->src_ip, &ip4_src);
-
     dp_packet_use_stub(&packet, packet_stub, sizeof packet_stub);
-    pinctrl_compose_ipv4(&packet, eth_src, svc_mon->ea,
-                         ip4_src, in6_addr_get_mapped_ipv4(&svc_mon->ip),
+    pinctrl_compose_ipv4(&packet, svc_mon->src_mac, svc_mon->ea,
+                         svc_mon->src_ip,
+                         in6_addr_get_mapped_ipv4(&svc_mon->ip),
                          IPPROTO_TCP, 63, TCP_HEADER_LEN);
 
     struct tcp_header *th = dp_packet_l4(&packet);
@@ -7568,16 +7570,12 @@ svc_monitor_send_udp_health_check(struct rconn *swconn,
         return;
     }
 
-    struct eth_addr eth_src;
-    eth_addr_from_string(svc_mon->sb_svc_mon->src_mac, &eth_src);
-    ovs_be32 ip4_src;
-    ip_parse(svc_mon->sb_svc_mon->src_ip, &ip4_src);
-
     uint64_t packet_stub[128 / 8];
     struct dp_packet packet;
     dp_packet_use_stub(&packet, packet_stub, sizeof packet_stub);
-    pinctrl_compose_ipv4(&packet, eth_src, svc_mon->ea,
-                         ip4_src, in6_addr_get_mapped_ipv4(&svc_mon->ip),
+    pinctrl_compose_ipv4(&packet, svc_mon->src_mac, svc_mon->ea,
+                         svc_mon->src_ip,
+                         in6_addr_get_mapped_ipv4(&svc_mon->ip),
                          IPPROTO_UDP, 63, UDP_HEADER_LEN + 8);
 
     struct udp_header *uh = dp_packet_l4(&packet);
