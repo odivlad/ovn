@@ -6381,7 +6381,7 @@ check ovn-nbctl lsp-add bob bob1 \
 # Ensure ovn-controller is caught up
 check ovn-nbctl --wait=hv sync
 
-on_exit 'ovs-ofctl dump-flows br-int'
+on_exit 'ovs-ofctl dump-flows br-int --no-stat'
 
 NETNS_DAEMONIZE([alice1], [nc -6 -l -k 80], [alice1.pid])
 NS_CHECK_EXEC([bob1], [nc -6 -z fd01::2 80], [0])
@@ -6393,6 +6393,7 @@ NS_CHECK_EXEC([bob1], [ping -q -c 3 -i 0.3 -w 2 fd01::2 | FORMAT_PING], \
 # Ensure datapaths show conntrack states as expected
 # Like with conntrack entries, we shouldn't try to predict
 # port binding tunnel keys. So omit them from expected labels.
+ovs-appctl dpctl/dump-flows --names
 AT_CHECK([ovs-appctl dpctl/dump-flows | grep 'ct_state(+new-est-rpl+trk).*ct(.*label=0x401020400000000/.*)' -c], [0], [dnl
 2
 ])
