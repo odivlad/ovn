@@ -5717,6 +5717,13 @@ build_dhcpv6_action(struct ovn_port *op, struct in6_addr *offer_ip,
     return true;
 }
 
+static void
+build_mirror_default_lflow(struct ovn_datapath *od,
+                           struct lflow_table *lflows)
+{
+    ovn_lflow_add(lflows, od, S_SWITCH_IN_MIRROR, 0, "1", "next;", NULL);
+}
+
 /* Adds the logical flows in the (in/out) check port sec stage only if
  *   - the lport is disabled or
  *   - lport is of type vtep - to skip the ingress pipeline.
@@ -15930,6 +15937,7 @@ build_lswitch_and_lrouter_iterate_by_ls(struct ovn_datapath *od,
                                         struct lswitch_flow_build_info *lsi)
 {
     ovs_assert(od->nbs);
+    build_mirror_default_lflow(od, lsi->lflows);
     build_lswitch_lflows_pre_acl_and_acl(od, lsi->features, lsi->lflows,
                                          lsi->meter_groups, NULL);
 
