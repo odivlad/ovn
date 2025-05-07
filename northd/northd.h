@@ -426,11 +426,12 @@ enum ovn_stage {
     PIPELINE_STAGE(SWITCH, OUT, ACL_HINT,     3, "ls_out_acl_hint")       \
     PIPELINE_STAGE(SWITCH, OUT, ACL_EVAL,     4, "ls_out_acl_eval")       \
     PIPELINE_STAGE(SWITCH, OUT, ACL_ACTION,   5, "ls_out_acl_action")     \
-    PIPELINE_STAGE(SWITCH, OUT, QOS_MARK,     6, "ls_out_qos_mark")       \
-    PIPELINE_STAGE(SWITCH, OUT, QOS_METER,    7, "ls_out_qos_meter")      \
-    PIPELINE_STAGE(SWITCH, OUT, STATEFUL,     8, "ls_out_stateful")       \
-    PIPELINE_STAGE(SWITCH, OUT, CHECK_PORT_SEC,  9, "ls_out_check_port_sec") \
-    PIPELINE_STAGE(SWITCH, OUT, APPLY_PORT_SEC, 10, "ls_out_apply_port_sec") \
+    PIPELINE_STAGE(SWITCH, OUT, MIRROR,       6, "ls_out_mirror")         \
+    PIPELINE_STAGE(SWITCH, OUT, QOS_MARK,     7, "ls_out_qos_mark")       \
+    PIPELINE_STAGE(SWITCH, OUT, QOS_METER,    8, "ls_out_qos_meter")      \
+    PIPELINE_STAGE(SWITCH, OUT, STATEFUL,     9, "ls_out_stateful")       \
+    PIPELINE_STAGE(SWITCH, OUT, CHECK_PORT_SEC, 10, "ls_out_check_port_sec") \
+    PIPELINE_STAGE(SWITCH, OUT, APPLY_PORT_SEC, 11, "ls_out_apply_port_sec") \
                                                                       \
     /* Logical router ingress stages. */                              \
     PIPELINE_STAGE(ROUTER, IN,  ADMISSION,       0, "lr_in_admission")    \
