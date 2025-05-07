@@ -15841,6 +15841,13 @@ static void build_lr_nat_defrag_and_lb_default_flows(
                   lflow_ref);
     ovn_lflow_add(lflows, od, S_ROUTER_IN_ECMP_STATEFUL, 0, "1", "next;",
                   lflow_ref);
+    ovn_lflow_add(lflows, od, S_ROUTER_IN_DHCP_RELAY_REQ, 0, "1",
+                "next;", lflow_ref);
+    ovn_lflow_add(lflows, od, S_ROUTER_IN_DHCP_RELAY_RESP_CHK, 0, "1",
+                "next;", lflow_ref);
+    ovn_lflow_add(lflows, od, S_ROUTER_IN_DHCP_RELAY_RESP, 0, "1",
+                "next;", lflow_ref);
+
 
     /* Send the IPv6 NS packets to next table. When ovn-controller
      * generates IPv6 NS (for the action - nd_ns{}), the injected
