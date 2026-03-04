@@ -1,6 +1,6 @@
 #!/bin/sh -ex
 
-OVS=openvswitch-3.3.4
+OVS=openvswitch-3.7.0
 
 # Prepare openvswitch.
 rm -vrf ./ovs
